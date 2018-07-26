@@ -44,59 +44,9 @@
 // For Standard Keys See
 // http://www.asciitable.com/
 // 
-// Arduino Keyboard Modifier Keys
-// Key                  Decimal value
-// KEY_LEFT_CTRL            128
-// KEY_LEFT_SHIFT           129
-// KEY_LEFT_ALT             130
-// KEY_LEFT_GUI             131
-// KEY_RIGHT_CTRL           132
-// KEY_RIGHT_SHIFT          133
-// KEY_RIGHT_ALT            134
-// KEY_RIGHT_GUI            135
-// KEY_UP_ARROW             218
-// KEY_DOWN_ARROW           217
-// KEY_LEFT_ARROW           216
-// KEY_RIGHT_ARROW          215
-// KEY_BACKSPACE            178
-// KEY_TAB                  179
-// KEY_RETURN               176
-// KEY_ESC                  177
-// KEY_INSERT               209
-// KEY_DELETE               212
-// KEY_PAGE_UP              211
-// KEY_PAGE_DOWN            214
-// KEY_HOME                 210
-// KEY_END                  213
-// KEY_CAPS_LOCK            193
-// KEY_F1                   194
-// KEY_F2                   195
-// KEY_F3                   196
-// KEY_F4                   197
-// KEY_F5                   198
-// KEY_F6                   199
-// KEY_F7                   200
-// KEY_F8                   201
-// KEY_F9                   202
-// KEY_F10                  203
-// KEY_F11                  204
-// KEY_F12                  205
-// Keypad /                 220
-// Keypad *                 221
-// Keypad -                 222
-// Keypad +                 223
-// Keypad ENTER             224
-// Keypad 1 & End           225
-// Keypad 2 & Down Arrow    226
-// Keypad 3 & PageDn        227
-// Keypad 4 & Left Arrow    228
-// Keypad 5                 229
-// Keypad 6 & Right Arrow   230
-// Keypad 7 & Home          231
-// Keypad 8 & Up Arrow      232
-// Keypad 9 & PageUp        233
-// Keypad 0 & Insert        234
-// Keypad . & Delete        235
+// The keyboard scancodes are defined in Keyboard.h
+// https://github.com/arduino-libraries/Keyboard/blob/master/src/Keyboard.h
+
 
 #include <HID.h> 
 #include <Keyboard.h>
@@ -224,13 +174,10 @@ void setup() {
   digitalWrite(0,HIGH);
   
   if (DefaultKBMode==1)
-  {  
-  if (!digitalRead(10)) windowsShift=1; else windowsShift=0; // detect if '1' is held on power up to swap mode
-  }
+    if (!digitalRead(10)) windowsShift=1; else windowsShift=0; // detect if '1' is held on power up to swap mode
+  
   if (DefaultKBMode==0)
-  {
-  if (!digitalRead(10)) windowsShift=0; else windowsShift=1; // detect if '1' is held on power up to swap mod
-  }
+    if (!digitalRead(10)) windowsShift=0; else windowsShift=1; // detect if '1' is held on power up to swap mod
   
   #ifdef DEBUG
     Serial.begin(9600); 
@@ -241,8 +188,7 @@ void setup() {
 
 void loop() // main keyboard scanning loop
 {
-  for (outPin=2;outPin<11; outPin++) // scan through all rows
-    {
+  for (outPin=2;outPin<11; outPin++) { // scan through all rows
     pinMode(2,INPUT);  // set unused (all) outputs to input to avoid ghosting
     pinMode(3,INPUT);
     pinMode(4,INPUT);
@@ -252,10 +198,6 @@ void loop() // main keyboard scanning loop
     pinMode(8,INPUT);
     pinMode(9,INPUT);
     pinMode(0,INPUT);
-    
-    // pinMode(outPin,OUTPUT);  // select output to activate
-    // digitalWrite(outPin,LOW); // set it as low, a pressed key will be pulled to ground
-    // Changed order to match real c64 keyboard matrix layout.
     
     if (outPin==2) pinMode (9,OUTPUT);digitalWrite(9,LOW);outPinSet=9;
     if (outPin==3) pinMode (3,OUTPUT);digitalWrite(3,LOW);outPinSet=3;
@@ -267,21 +209,20 @@ void loop() // main keyboard scanning loop
     if (outPin==9) pinMode (2,OUTPUT);digitalWrite(2,LOW);outPinSet=2;
     if (outPin==10) pinMode(0,OUTPUT);digitalWrite(0,LOW);outPinSet=0;
     
-    for (i=0; i<9; i++) // scan through columns
-      {
-        
+    for (i=0; i<9; i++) { // scan through columns
       keyPos=i+((outPin-2)*9); // calculate character map position
       if (outPin == 10) keyPos=i+((8-2)*9); // Evil hack
-      if (USKeyboard==1)
-      {
-      if (!windowsShift) inChar=keyMapUS[keyPos+shift]; // work out which key it is from the map and shift if needed
-       else inChar=keyMapUS[keyPos+144];  // use "windows" keymap where shift is passed through
+      
+      if (USKeyboard==1) {
+        if (!windowsShift) inChar=keyMapUS[keyPos+shift]; // work out which key it is from the map and shift if needed
+        else inChar=keyMapUS[keyPos+144];  // use "windows" keymap where shift is passed through
       }
-      if (USKeyboard==0)
-      {
-      if (!windowsShift) inChar=keyMapEU[keyPos+shift]; // work out which key it is from the map and shift if needed
-       else inChar=keyMapEU[keyPos+144];  // use "windows" keymap where shift is passed through
+      
+      if (USKeyboard==0) {
+        if (!windowsShift) inChar=keyMapEU[keyPos+shift]; // work out which key it is from the map and shift if needed
+        else inChar=keyMapEU[keyPos+144];  // use "windows" keymap where shift is passed through
       }
+      
       if (i==0) digitalread=1-digitalRead(10); // check the active input pin
       if (i==1) digitalread=1-digitalRead(16);
       if (i==2) digitalread=1-digitalRead(14);
@@ -292,70 +233,59 @@ void loop() // main keyboard scanning loop
       if (i==7) digitalread=1-digitalRead(15);
       if (i==8) digitalread=1-digitalRead(1);
  
- if (HybridKeyboard==1)
- {
-                  if ((millis()-lastDebounceTime[keyPos])>debounceDelay) // debounce for each key individually
-                     {
-                       if (digitalread==1 && keyDown[keyPos]==0) // if a key is pressed and wasn't already down
-                       {
-                        keyDown[keyPos]=inChar;        // put the right character in the keydown array
-                        if (keyDown[16]&&keyDown[2])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[0];}
-                        if (keyDown[16]&&keyDown[3])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[1];}
-                        if (keyDown[16]&&keyDown[4])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[2];}
-                        if (keyDown[16]&&keyDown[5])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[3];}
-                        if (keyDown[16]&&keyDown[6])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[4];}
-                        if (keyDown[16]&&keyDown[7])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[5];}
-                        if (keyDown[16]&&keyDown[62]) {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[6];}
+      if (HybridKeyboard==1) {
+        if ((millis()-lastDebounceTime[keyPos])>debounceDelay) {// debounce for each key individually
+          if (digitalread==1 && keyDown[keyPos]==0) {// if a key is pressed and wasn't already down
+            keyDown[keyPos]=inChar;        // put the right character in the keydown array
+            if (keyDown[16]&&keyDown[2])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[0];}
+            if (keyDown[16]&&keyDown[3])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[1];}
+            if (keyDown[16]&&keyDown[4])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[2];}
+            if (keyDown[16]&&keyDown[5])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[3];}
+            if (keyDown[16]&&keyDown[6])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[4];}
+            if (keyDown[16]&&keyDown[7])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[5];}
+            if (keyDown[16]&&keyDown[62]) {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[6];}
         
-        if ((keyPos!=16&&keyPos!=58)||windowsShift==1)// is it not-shift or in windows mode?
-          {  // if so pass the key through
-          lastDebounceTime[keyPos] = millis(); // reset the debounce delay
-          pressKey(keyDown[keyPos]);    // pass the keypress to windows
+            if ((keyPos!=16&&keyPos!=58)||windowsShift==1) {// is it not-shift or in windows mode?
+              // if so pass the key through
+              lastDebounceTime[keyPos] = millis(); // reset the debounce delay
+              pressKey(keyDown[keyPos]);    // pass the keypress to windows
+            }
+            else { lastDebounceTime[keyPos]=millis(); shift=72; } // reset keybounce delay and mark as shift press
           }
-        else { lastDebounceTime[keyPos]=millis(); shift=72; } // reset keybounce delay and mark as shift press
-        }
-      if (digitalread==0 && keyDown[keyPos]!=0) // key is up and a character is stored in the keydown position
-        {
-        if ((keyPos!=16&&keyPos!=58)||windowsShift==1) // not-shift or windows mode
-          {
-          lastDebounceTime[keyPos] = millis();  // reset keybounce delay
-          releaseKey(keyDown[keyPos]);    // pass key release to windows
+          if (digitalread==0 && keyDown[keyPos]!=0) {// key is up and a character is stored in the keydown position
+            if ((keyPos!=16&&keyPos!=58)||windowsShift==1) {// not-shift or windows mode
+              lastDebounceTime[keyPos] = millis();  // reset keybounce delay
+              releaseKey(keyDown[keyPos]);    // pass key release to windows
+            }
+            else { lastDebounceTime[keyPos]=millis(); shift=0; } // reset keybounce delay and mark as un-shifted
+            keyDown[keyPos]=0; // set keydown array position as up
           }
-          else { lastDebounceTime[keyPos]=millis(); shift=0; } // reset keybounce delay and mark as un-shifted
-        keyDown[keyPos]=0; // set keydown array position as up
         }
-   }
-  }
-  if (HybridKeyboard==0)
-  {
-    if ((millis()-lastDebounceTime[keyPos])>debounceDelay) // debounce for each key individually
-   {
-      if (digitalread==1 && keyDown[keyPos]==0) // if a key is pressed and wasn't already down
-        {
-        keyDown[keyPos]=inChar;        // put the right character in the keydown array
-        if ((keyPos!=16&&keyPos!=58)||windowsShift==1)// is it not-shift or in windows mode?
-          {  // if so pass the key through
-          lastDebounceTime[keyPos] = millis(); // reset the debounce delay
-          pressKey(keyDown[keyPos]);    // pass the keypress to windows
-          }
-        else { lastDebounceTime[keyPos]=millis(); shift=72; } // reset keybounce delay and mark as shift press
-        }
-      if (digitalread==0 && keyDown[keyPos]!=0) // key is up and a character is stored in the keydown position
-        {
-        if ((keyPos!=16&&keyPos!=58)||windowsShift==1) // not-shift or windows mode
-          {
-          lastDebounceTime[keyPos] = millis();  // reset keybounce delay
-          releaseKey(keyDown[keyPos]);    // pass key release to windows
-          }
-          else { lastDebounceTime[keyPos]=millis(); shift=0; } // reset keybounce delay and mark as un-shifted
-        keyDown[keyPos]=0; // set keydown array position as up
-        }
-   }
-  }
-  
       }
+      if (HybridKeyboard==0) {
+        if ((millis()-lastDebounceTime[keyPos])>debounceDelay) { // debounce for each key individually
+          if (digitalread==1 && keyDown[keyPos]==0) {// if a key is pressed and wasn't already down
+            keyDown[keyPos]=inChar;        // put the right character in the keydown array
+            if ((keyPos!=16&&keyPos!=58)||windowsShift==1) {// is it not-shift or in windows mode?
+              // if so pass the key through
+              lastDebounceTime[keyPos] = millis(); // reset the debounce delay
+              pressKey(keyDown[keyPos]);    // pass the keypress to windows
+            }
+            else { lastDebounceTime[keyPos]=millis(); shift=72; } // reset keybounce delay and mark as shift press
+          }
+          if (digitalread==0 && keyDown[keyPos]!=0) { // key is up and a character is stored in the keydown position
+            if ((keyPos!=16&&keyPos!=58)||windowsShift==1) {// not-shift or windows mode
+              lastDebounceTime[keyPos] = millis();  // reset keybounce delay
+              releaseKey(keyDown[keyPos]);    // pass key release to windows
+            }
+            else { lastDebounceTime[keyPos]=millis(); shift=0; } // reset keybounce delay and mark as un-shifted
+            keyDown[keyPos]=0; // set keydown array position as up
+          }
+        }
+      }
+    }
   digitalWrite(outPinSet,HIGH); // set output back to high
- }
+  }
 }
 
 void pressKey(char key) {
