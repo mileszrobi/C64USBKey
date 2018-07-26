@@ -34,7 +34,7 @@
 //   4        N/C
 //   3        1       1 - TX
 //   2        N/C
-//   1        11      8 - A8 
+//   1        0       0 - RX
 
 
 // Keyboard Matrix Now Matches real C64 with one more column.
@@ -102,7 +102,7 @@
 #include <Keyboard.h>
 
 // Comment out for PROD CODE!!!11
-#define DEBUG
+//#define DEBUG
 
 int inChar=0;
 int keyPos=0;
@@ -182,7 +182,7 @@ char keyMapEU[216]={
 
 };
 
-char Hybridkeys[7]{
+char Hybridkeys[7] {
                                                   // Hybrid Keys. These are the shifted values.  
 216,201,195,197,199,218,205,                      // LR F8 F2 F4 F6 UD Restore
 };
@@ -202,6 +202,7 @@ void setup() {
   pinMode(7,OUTPUT);
   pinMode(8,OUTPUT);
   pinMode(9,OUTPUT);
+  pinMode(0,OUTPUT);
 
   pinMode(10,INPUT_PULLUP); // use internal pullups to hold pins high
   pinMode(16,INPUT_PULLUP);
@@ -220,6 +221,7 @@ void setup() {
   digitalWrite(7,HIGH);
   digitalWrite(8,HIGH);
   digitalWrite(9,HIGH);
+  digitalWrite(0,HIGH);
   
   if (DefaultKBMode==1)
   {  
@@ -239,7 +241,7 @@ void setup() {
 
 void loop() // main keyboard scanning loop
 {
-  for (outPin=2;outPin<10; outPin++) // scan through all rows
+  for (outPin=2;outPin<11; outPin++) // scan through all rows
     {
     pinMode(2,INPUT);  // set unused (all) outputs to input to avoid ghosting
     pinMode(3,INPUT);
@@ -249,6 +251,7 @@ void loop() // main keyboard scanning loop
     pinMode(7,INPUT);
     pinMode(8,INPUT);
     pinMode(9,INPUT);
+    pinMode(0,INPUT);
     
     // pinMode(outPin,OUTPUT);  // select output to activate
     // digitalWrite(outPin,LOW); // set it as low, a pressed key will be pulled to ground
@@ -262,10 +265,13 @@ void loop() // main keyboard scanning loop
     if (outPin==7) pinMode (7,OUTPUT);digitalWrite(7,LOW);outPinSet=7;
     if (outPin==8) pinMode (8,OUTPUT);digitalWrite(8,LOW);outPinSet=8;
     if (outPin==9) pinMode (2,OUTPUT);digitalWrite(2,LOW);outPinSet=2;
+    if (outPin==10) pinMode(0,OUTPUT);digitalWrite(0,LOW);outPinSet=0;
     
     for (i=0; i<9; i++) // scan through columns
       {
+        
       keyPos=i+((outPin-2)*9); // calculate character map position
+      if (outPin == 10) keyPos=i+((8-2)*9); // Evil hack
       if (USKeyboard==1)
       {
       if (!windowsShift) inChar=keyMapUS[keyPos+shift]; // work out which key it is from the map and shift if needed
@@ -352,20 +358,30 @@ void loop() // main keyboard scanning loop
  }
 }
 
-void pressKey(int key) {
+void pressKey(char key) {
   #ifdef DEBUG
     Serial.print("Press: ");
-    Serial.println(key);
+    printChar(key);
   #else
     Keyboard.press(key);
   #endif 
 }
 
-void releaseKey(int key) {
+void releaseKey(char key) {
   #ifdef DEBUG
     Serial.print("Release: ");
-    Serial.println(key);
+    printChar(key);
   #else
     Keyboard.release(key);    // pass key release to windows
   #endif
 }
+
+void printChar(char key) {
+  if (key < ' ') {
+    Serial.print('\\');
+    Serial.println((unsigned char)key);
+  } else {
+    Serial.println(key);
+  }
+}
+
