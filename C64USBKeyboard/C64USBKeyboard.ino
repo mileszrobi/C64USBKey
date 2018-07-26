@@ -41,9 +41,6 @@
 // Matrix can be found at 
 // http://sta.c64.org/cbm64kbdlay.html
 
-// For Standard Keys See
-// http://www.asciitable.com/
-// 
 // The keyboard scancodes are defined in Keyboard.h
 // https://github.com/arduino-libraries/Keyboard/blob/master/src/Keyboard.h
 
@@ -52,7 +49,7 @@
 #include <Keyboard.h>
 
 // Comment out for PROD CODE!!!11
-//#define DEBUG
+#define DEBUG
 
 int inChar=0;
 int keyPos=0;
@@ -61,14 +58,11 @@ int keyDown[72];
 long lastDebounceTime[72];
 int debounceDelay=50;
 int shift=0;
-int outPin=2;
 int outPinSet=0;
-int i;
 int windowsShift;
 int DefaultKBMode=0;                              // Select 0 For Windows Mode On startup or 1 for C64 Mode
 int USKeyboard=1;                                 // Select 1 for US Keyboard or 0 For EU
 int HybridKeyboard=1;                             // Select 0 for normal or 1 for the left shift key allowing all f keys and cursor keys in windows mode. (Also has a shifted restore key)
-
 
 
 char keyMapUS[216]={
@@ -132,9 +126,9 @@ char keyMapEU[216]={
 
 };
 
-char Hybridkeys[7] {
-                                                  // Hybrid Keys. These are the shifted values.  
-216,201,195,197,199,218,205,                      // LR F8 F2 F4 F6 UD Restore
+char Hybridkeys[7] {                              // Hybrid Keys. These are the shifted values.
+// LR           F8      F2      F4      F6      UD            Restore
+KEY_LEFT_ARROW, KEY_F8, KEY_F2, KEY_F4, KEY_F6, KEY_UP_ARROW, KEY_F12,                      
 };
 
 void setup() {
@@ -142,7 +136,7 @@ void setup() {
   Keyboard.begin();// initialize control over the keyboard:
   #endif
   
-  for (i=0; i<64; i++) keyDown[i]=0; // Set all keys as up
+  for (int i=0; i<64; i++) keyDown[i]=0; // Set all keys as up
   
   pinMode(2,OUTPUT);  // configure inputs and outputs
   pinMode(3,OUTPUT);
@@ -188,7 +182,9 @@ void setup() {
 
 void loop() // main keyboard scanning loop
 {
-  for (outPin=2;outPin<11; outPin++) { // scan through all rows
+  int outPinForRow[] = {9, 3, 4, 5, 6, 7, 8, 2, 0};
+  int inPinForColumn[] = {10, 16, 14, A3, A0, A1, A2, 15, 1};
+  for (int row = 0; row < 9; row++) {
     pinMode(2,INPUT);  // set unused (all) outputs to input to avoid ghosting
     pinMode(3,INPUT);
     pinMode(4,INPUT);
@@ -198,20 +194,14 @@ void loop() // main keyboard scanning loop
     pinMode(8,INPUT);
     pinMode(9,INPUT);
     pinMode(0,INPUT);
+
+    pinMode(outPinForRow[row], OUTPUT);
+    digitalWrite(outPinForRow[row], LOW);
+    outPinSet = outPinForRow[row];
     
-    if (outPin==2) pinMode (9,OUTPUT);digitalWrite(9,LOW);outPinSet=9;
-    if (outPin==3) pinMode (3,OUTPUT);digitalWrite(3,LOW);outPinSet=3;
-    if (outPin==4) pinMode (4,OUTPUT);digitalWrite(4,LOW);outPinSet=4;
-    if (outPin==5) pinMode (5,OUTPUT);digitalWrite(5,LOW);outPinSet=5;
-    if (outPin==6) pinMode (6,OUTPUT);digitalWrite(6,LOW);outPinSet=6;
-    if (outPin==7) pinMode (7,OUTPUT);digitalWrite(7,LOW);outPinSet=7;
-    if (outPin==8) pinMode (8,OUTPUT);digitalWrite(8,LOW);outPinSet=8;
-    if (outPin==9) pinMode (2,OUTPUT);digitalWrite(2,LOW);outPinSet=2;
-    if (outPin==10) pinMode(0,OUTPUT);digitalWrite(0,LOW);outPinSet=0;
-    
-    for (i=0; i<9; i++) { // scan through columns
-      keyPos=i+((outPin-2)*9); // calculate character map position
-      if (outPin == 10) keyPos=i+((8-2)*9); // Evil hack
+    for (int column = 0; column < 9; column++) {
+      keyPos = column + (row * 9); // calculate character map position
+      if (row == 8) keyPos=70; // Evil Restore hack
       
       if (USKeyboard==1) {
         if (!windowsShift) inChar=keyMapUS[keyPos+shift]; // work out which key it is from the map and shift if needed
@@ -223,15 +213,7 @@ void loop() // main keyboard scanning loop
         else inChar=keyMapEU[keyPos+144];  // use "windows" keymap where shift is passed through
       }
       
-      if (i==0) digitalread=1-digitalRead(10); // check the active input pin
-      if (i==1) digitalread=1-digitalRead(16);
-      if (i==2) digitalread=1-digitalRead(14);
-      if (i==3) digitalread=1-digitalRead(A3);
-      if (i==4) digitalread=1-digitalRead(A0);
-      if (i==5) digitalread=1-digitalRead(A1);
-      if (i==6) digitalread=1-digitalRead(A2);
-      if (i==7) digitalread=1-digitalRead(15);
-      if (i==8) digitalread=1-digitalRead(1);
+      digitalread=1-digitalRead(inPinForColumn[column]);
  
       if (HybridKeyboard==1) {
         if ((millis()-lastDebounceTime[keyPos])>debounceDelay) {// debounce for each key individually
