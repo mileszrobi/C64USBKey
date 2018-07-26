@@ -99,7 +99,10 @@
 // Keypad . & Delete        235
 
 #include <HID.h> 
-#include <Keyboard.h> 
+#include <Keyboard.h>
+
+// Comment out for PROD CODE!!!11
+#define DEBUG
 
 int inChar=0;
 int keyPos=0;
@@ -183,8 +186,11 @@ char Hybridkeys[7]{
                                                   // Hybrid Keys. These are the shifted values.  
 216,201,195,197,199,218,205,                      // LR F8 F2 F4 F6 UD Restore
 };
+
 void setup() {
+  #ifndef DEBUG
   Keyboard.begin();// initialize control over the keyboard:
+  #endif
   
   for (i=0; i<64; i++) keyDown[i]=0; // Set all keys as up
   
@@ -205,7 +211,6 @@ void setup() {
   pinMode(A1,INPUT_PULLUP);
   pinMode(A2,INPUT_PULLUP);
   pinMode(A3,INPUT_PULLUP);
-  pinMode(1,INPUT_PULLUP);
   
   digitalWrite(2,LOW);  // start with one active pin to detect '1'
   digitalWrite(3,HIGH);
@@ -224,11 +229,16 @@ void setup() {
   {
   if (!digitalRead(10)) windowsShift=0; else windowsShift=1; // detect if '1' is held on power up to swap mod
   }
+  
+  #ifdef DEBUG
+    Serial.begin(9600); 
+    while (!Serial) ; // Wait for the serial monitor
+    Serial.println("Setup done");
+  #endif
  }
 
 void loop() // main keyboard scanning loop
 {
- 
   for (outPin=2;outPin<10; outPin++) // scan through all rows
     {
     pinMode(2,INPUT);  // set unused (all) outputs to input to avoid ghosting
@@ -252,7 +262,6 @@ void loop() // main keyboard scanning loop
     if (outPin==7) pinMode (7,OUTPUT);digitalWrite(7,LOW);outPinSet=7;
     if (outPin==8) pinMode (8,OUTPUT);digitalWrite(8,LOW);outPinSet=8;
     if (outPin==9) pinMode (2,OUTPUT);digitalWrite(2,LOW);outPinSet=2;
-    
     
     for (i=0; i<9; i++) // scan through columns
       {
@@ -284,18 +293,18 @@ void loop() // main keyboard scanning loop
                        if (digitalread==1 && keyDown[keyPos]==0) // if a key is pressed and wasn't already down
                        {
                         keyDown[keyPos]=inChar;        // put the right character in the keydown array
-                        if (keyDown[16]&&keyDown[2])  {Keyboard.release (keyDown[16]);keyDown[keyPos]=Hybridkeys[0];}
-                        if (keyDown[16]&&keyDown[3])  {Keyboard.release (keyDown[16]);keyDown[keyPos]=Hybridkeys[1];}
-                        if (keyDown[16]&&keyDown[4])  {Keyboard.release (keyDown[16]);keyDown[keyPos]=Hybridkeys[2];}
-                        if (keyDown[16]&&keyDown[5])  {Keyboard.release (keyDown[16]);keyDown[keyPos]=Hybridkeys[3];}
-                        if (keyDown[16]&&keyDown[6])  {Keyboard.release (keyDown[16]);keyDown[keyPos]=Hybridkeys[4];}
-                        if (keyDown[16]&&keyDown[7])  {Keyboard.release (keyDown[16]);keyDown[keyPos]=Hybridkeys[5];}
-                        if (keyDown[16]&&keyDown[62]) {Keyboard.release (keyDown[16]);keyDown[keyPos]=Hybridkeys[6];}
+                        if (keyDown[16]&&keyDown[2])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[0];}
+                        if (keyDown[16]&&keyDown[3])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[1];}
+                        if (keyDown[16]&&keyDown[4])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[2];}
+                        if (keyDown[16]&&keyDown[5])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[3];}
+                        if (keyDown[16]&&keyDown[6])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[4];}
+                        if (keyDown[16]&&keyDown[7])  {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[5];}
+                        if (keyDown[16]&&keyDown[62]) {releaseKey (keyDown[16]);keyDown[keyPos]=Hybridkeys[6];}
         
         if ((keyPos!=16&&keyPos!=58)||windowsShift==1)// is it not-shift or in windows mode?
           {  // if so pass the key through
           lastDebounceTime[keyPos] = millis(); // reset the debounce delay
-          Keyboard.press(keyDown[keyPos]);    // pass the keypress to windows
+          pressKey(keyDown[keyPos]);    // pass the keypress to windows
           }
         else { lastDebounceTime[keyPos]=millis(); shift=72; } // reset keybounce delay and mark as shift press
         }
@@ -304,7 +313,7 @@ void loop() // main keyboard scanning loop
         if ((keyPos!=16&&keyPos!=58)||windowsShift==1) // not-shift or windows mode
           {
           lastDebounceTime[keyPos] = millis();  // reset keybounce delay
-          Keyboard.release(keyDown[keyPos]);    // pass key release to windows
+          releaseKey(keyDown[keyPos]);    // pass key release to windows
           }
           else { lastDebounceTime[keyPos]=millis(); shift=0; } // reset keybounce delay and mark as un-shifted
         keyDown[keyPos]=0; // set keydown array position as up
@@ -321,7 +330,7 @@ void loop() // main keyboard scanning loop
         if ((keyPos!=16&&keyPos!=58)||windowsShift==1)// is it not-shift or in windows mode?
           {  // if so pass the key through
           lastDebounceTime[keyPos] = millis(); // reset the debounce delay
-          Keyboard.press(keyDown[keyPos]);    // pass the keypress to windows
+          pressKey(keyDown[keyPos]);    // pass the keypress to windows
           }
         else { lastDebounceTime[keyPos]=millis(); shift=72; } // reset keybounce delay and mark as shift press
         }
@@ -330,7 +339,7 @@ void loop() // main keyboard scanning loop
         if ((keyPos!=16&&keyPos!=58)||windowsShift==1) // not-shift or windows mode
           {
           lastDebounceTime[keyPos] = millis();  // reset keybounce delay
-          Keyboard.release(keyDown[keyPos]);    // pass key release to windows
+          releaseKey(keyDown[keyPos]);    // pass key release to windows
           }
           else { lastDebounceTime[keyPos]=millis(); shift=0; } // reset keybounce delay and mark as un-shifted
         keyDown[keyPos]=0; // set keydown array position as up
@@ -341,5 +350,22 @@ void loop() // main keyboard scanning loop
       }
   digitalWrite(outPinSet,HIGH); // set output back to high
  }
+}
 
+void pressKey(int key) {
+  #ifdef DEBUG
+    Serial.print("Press: ");
+    Serial.println(key);
+  #else
+    Keyboard.press(key);
+  #endif 
+}
+
+void releaseKey(int key) {
+  #ifdef DEBUG
+    Serial.print("Release: ");
+    Serial.println(key);
+  #else
+    Keyboard.release(key);    // pass key release to windows
+  #endif
 }
