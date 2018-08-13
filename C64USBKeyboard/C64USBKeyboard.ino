@@ -1,18 +1,18 @@
-// C64 USB Keyboard mod 
-// Original by Pyofer 
-// See original thread @ 
-// http://www.lemon64.com/forum/viewtopic.php?t=55650 
-// 
-// Modified to Support restore key & US/EU keymaps by dabone. 
-// Wiring is as follows 
-// 64 Keyboard connector has 20 Pins with a key Pin @ Pin 2. 
-// Arduino Pro Micro Pinout 
-// https://cdn.sparkfun.com/assets/9/c/3/c/4/523a1765757b7f5c6e8b4567.png 
+// C64 USB Keyboard mod
+// Original by Pyofer
+// See original thread @
+// http://www.lemon64.com/forum/viewtopic.php?t=55650
+//
+// Modified to Support restore key & US/EU keymaps by dabone.
+// Wiring is as follows
+// 64 Keyboard connector has 20 Pins with a key Pin @ Pin 2.
+// Arduino Pro Micro Pinout
+// https://cdn.sparkfun.com/assets/9/c/3/c/4/523a1765757b7f5c6e8b4567.png
 
-// Board type should be Arduino Leonardo (or the Pro mini clones) 
+// Board type should be Arduino Leonardo (or the Pro mini clones)
 
 
-//KeyBoard Arduino Pro Micro 
+//KeyBoard Arduino Pro Micro
 //  Pin     Pin     Label
 
 //   20       5       2 - SDA
@@ -20,17 +20,17 @@
 //   18       7       4 - A6
 //   17       8       5
 //   16       9       6 - A7
-//   15       10      7 - 
-//   14       11      8 - A8 
-//   13       12      9 - A9 
-//   12       13      10 - A10 
-//   11       14      16 - MOSI 
-//   10       15      14 - MISO 
-//   9        16      15 - SCLK 
-//   8        17      18 - A0 
-//   7        18      19 - A1 
-//   6        19      20 - A2 
-//   5        20      21 - A3 
+//   15       10      7 -
+//   14       11      8 - A8
+//   13       12      9 - A9
+//   12       13      10 - A10
+//   11       14      16 - MOSI
+//   10       15      14 - MISO
+//   9        16      15 - SCLK
+//   8        17      18 - A0
+//   7        18      19 - A1
+//   6        19      20 - A2
+//   5        20      21 - A3
 //   4        N/C
 //   3        1       1 - TX
 //   2        N/C
@@ -38,235 +38,155 @@
 
 
 // Keyboard Matrix Now Matches real C64 with one more column.
-// Matrix can be found at 
+// Matrix can be found at
 // http://sta.c64.org/cbm64kbdlay.html
 // We'll represent the matrix as a 9x9 matrix, where row 9 / col 9 is RESTORE.
 
 // The keyboard scancodes are defined in Keyboard.h
 // https://github.com/arduino-libraries/Keyboard/blob/master/src/Keyboard.h
 
-
-#include <HID.h> 
+#include <HID.h>
 #include <Keyboard.h>
+#include "matrix.h"
 
-// Comment out for PROD CODE!!!11
-#define DEBUG
+// Comment out for prod code
+//#define DEBUG
 
-// Some keyboard matrix positions
-#define POS_INSERT_DELETE 0
-#define POS_RETURN 1
-#define POS_CRSR_LR 2
-#define POS_F7 3
-#define POS_F1 4
-#define POS_F3 5
-#define POS_F5 6
-#define POS_CRSR_UD 7
-#define POS_LEFT_SHIFT 16
-#define POS_RIGHT_SHIFT 58
-#define POS_RESTORE 62
+int mode = 0;
+char keyDown[LAYER_SIZE];
+long lastDebounceTime[LAYER_SIZE];
+int debounceDelay = 50;
 
-int inChar=0;
-int keyPos=0;
-int digitalread=0;
-int keyDown[72];
-long lastDebounceTime[72];
-int debounceDelay=50;
-int shift=0;
-int outPinSet=0;
-int windowsShift;
-int DefaultKBMode=0;                              // Select 0 For Windows Mode On startup or 1 for C64 Mode
-int USKeyboard=1;                                 // Select 1 for US Keyboard or 0 For EU
-int HybridKeyboard=1;                             // Select 0 for normal or 1 for the left shift key allowing all f keys and cursor keys in windows mode. (Also has a shifted restore key)
+int outPinForRow[] = {9, 3, 4, 5, 6, 7, 8, 2};
+int inPinForColumn[] = {10, 16, 14, A3, A0, A1, A2, 15};
 
-
-char keyMapUS[216]={
-
-212,176,215,200,194,196,198,217,0,                //  Del Return LR F7 F1 F3 F5 UD Null
-51,119,97,52,122,115,101,129,0,                   //  3 W A 4 Z S E LSHFT Null
-53,114,100,54,99,102,116,120,0,                   //  5 R D 6 C F T X Null
-55,121,103,56,98,104,117,118,0,                   //  7 Y G 8 B H U V Null
-57,105,106,48,109,107,111,110,0,                  //  9 I J Zero M K O N Null
-43,112,108,45,46,58,64,44,0,                      //  + P L - . : @ , Null     (US Keyboard)
-35,42,59,210,133,61,211,47,205,                   //  Pound * ; Home RSHFT = Pi / Restore
-49,178,128,50,32,135,113,177,0,                   //  1 BS CTRL 2 SPC C= Q RunStop Null
-
-209,176,216,201,195,197,199,218,0,                //  Del Return LR F8 F2 F4 F6 UD Null
-92,87,65,36,90,83,69,129,0,                       //  # W A $ Z S E LSHFT Null
-37,82,68,38,67,70,84,88,0,                        //  % R D & C F T X Null
-39,89,71,40,66,72,85,86,0,                        //  ' Y G ( B H U V Null
-41,73,74,48,77,75,79,78,0,                        //  ) I J Zero M K O N Null
-43,80,76,95,62,91,96,60,0,                        //  + P L - > : @ < Null
-35,42,93,210,133,61,214,63,205,                   //  Pound * ; Home RSHFT = Pi ? Restore
-33,178,128,34,32,135,81,177,0,                    //  ! BS CTRL " SPC C= Q RS Null     (US Keyboard)
-
-178,176,215,200,194,196,198,217,0,                //  Del Return LR F7 F1 F3 F5 UD Null
-51,119,97,52,122,115,101,129,0,                   //  3 W A 4 Z S E LSHFT Null
-53,114,100,54,99,102,116,120,0,                   //  5 R D 6 C F T X Null
-55,121,103,56,98,104,117,118,0,                   //  7 Y G 8 B H U V Null
-57,105,106,48,109,107,111,110,0,                  //  9 I J Zero M K O N Null
-45,112,108,61,46,59,91,44,0,                      //  + P L - . : @ , Null
-209,93,39,210,133,92,212,47,205,                  //  Pound * ; Home RSHFT = Pi / Restore
-49,223,9,50,32,128,113,177,0,                     //  1 BS CTRL 2 SPC C= Q RunStop Null
-
-};
-
-char keyMapEU[216]={
-212,176,215,200,194,196,198,217,0,                //  Del Return LR F7 F1 F3 F5 UD Null
-51,119,97,52,122,115,101,129,0,                   //  3 W A 4 Z S E LSHFT Null
-53,114,100,54,99,102,116,120,0,                   //  5 R D 6 C F T X Null
-55,121,103,56,98,104,117,118,0,                   //  7 Y G 8 B H U V Null
-57,105,106,48,109,107,111,110,0,                  //  9 I J Zero M K O N Null
-43,112,108,45,46,58,34,44,0,                      //  + P L - . : @ , Null     (EU Keyboard)
-35,42,59,210,133,61,211,47,205,                   //  Pound * ; Home RSHFT = Pi / Restore
-49,178,128,50,32,135,113,177,0,                   //  1 BS CTRL 2 SPC C= Q RunStop Null
-
-209,176,216,201,195,197,199,218,0,                //  Del Return LR F8 F2 F4 F6 UD Null
-92,87,65,36,90,83,69,129,0,                       //  # W A $ Z S E LSHFT Null
-37,82,68,38,67,70,84,88,0,                        //  % R D & C F T X Null
-39,89,71,40,66,72,85,86,0,                        //  ' Y G ( B H U V Null
-41,73,74,48,77,75,79,78,0,                        //  ) I J Zero M K O N Null
-43,80,76,95,62,91,96,60,0,                        //  + P L - > : @ < Null
-35,42,93,210,133,61,214,63,205,                   //  Pound * ; Home RSHFT = Pi ? Restore
-33,178,128,64,32,135,81,177,0,                    //  ! BS CTRL " SPC C= Q RS Null     (EU Keyboard)
-
-178,176,215,200,194,196,198,217,0,                //  Del Return LR F7 F1 F3 F5 UD Null
-51,119,97,52,122,115,101,129,0,                   //  3 W A 4 Z S E LSHFT Null
-53,114,100,54,99,102,116,120,0,                   //  5 R D 6 C F T X Null
-55,121,103,56,98,104,117,118,0,                   //  7 Y G 8 B H U V Null
-57,105,106,48,109,107,111,110,0,                  //  9 I J Zero M K O N Null
-45,112,108,61,46,59,91,44,0,                      //  + P L - . : @ , Null
-209,93,39,210,133,92,212,47,205,                  //  Pound * ; Home RSHFT = Pi / Restore
-49,223,9,50,32,128,113,177,0,                     //  1 BS CTRL 2 SPC C= Q RunStop Null
-
-};
+// Restore's pins are handled separately
+#define RESTORE_PIN_OUT 0
+#define RESTORE_PIN_IN 1
 
 void setup() {
-  #ifndef DEBUG
+#ifndef DEBUG
   Keyboard.begin();// initialize control over the keyboard:
-  #endif
-  
-  for (int i=0; i<64; i++) keyDown[i]=0; // Set all keys as up
-  
-  pinMode(2,OUTPUT);  // configure inputs and outputs
-  pinMode(3,OUTPUT);
-  pinMode(4,OUTPUT);
-  pinMode(5,OUTPUT);
-  pinMode(6,OUTPUT);
-  pinMode(7,OUTPUT);
-  pinMode(8,OUTPUT);
-  pinMode(9,OUTPUT);
-  pinMode(0,OUTPUT);
+#endif
 
-  pinMode(10,INPUT_PULLUP); // use internal pullups to hold pins high
-  pinMode(16,INPUT_PULLUP);
-  pinMode(15,INPUT_PULLUP);
-  pinMode(14,INPUT_PULLUP);
-  pinMode(A0,INPUT_PULLUP);
-  pinMode(A1,INPUT_PULLUP);
-  pinMode(A2,INPUT_PULLUP);
-  pinMode(A3,INPUT_PULLUP);
-  
-  digitalWrite(2,LOW);  // start with one active pin to detect '1'
-  digitalWrite(3,HIGH);
-  digitalWrite(4,HIGH);
-  digitalWrite(5,HIGH);
-  digitalWrite(6,HIGH);
-  digitalWrite(7,HIGH);
-  digitalWrite(8,HIGH);
-  digitalWrite(9,HIGH);
-  digitalWrite(0,HIGH);
-  
-  if (DefaultKBMode==1)
-    if (!digitalRead(10)) windowsShift=1; else windowsShift=0; // detect if '1' is held on power up to swap mode
-  
-  if (DefaultKBMode==0)
-    if (!digitalRead(10)) windowsShift=0; else windowsShift=1; // detect if '1' is held on power up to swap mod
-  
-  #ifdef DEBUG
-    Serial.begin(9600); 
-    while (!Serial) ; // Wait for the serial monitor
-    Serial.println("Setup done");
-  #endif
- }
+  for (int i = 0; i < LAYER_SIZE; i++) keyDown[i] = 0; // Set all keys as up
 
-void loop() // main keyboard scanning loop
+  pinMode(2, OUTPUT); // configure inputs and outputs
+  pinMode(3, OUTPUT);
+  pinMode(4, OUTPUT);
+  pinMode(5, OUTPUT);
+  pinMode(6, OUTPUT);
+  pinMode(7, OUTPUT);
+  pinMode(8, OUTPUT);
+  pinMode(9, OUTPUT);
+  pinMode(0, OUTPUT); // Restore
+
+  pinMode(10, INPUT_PULLUP); // use internal pullups to hold pins high
+  pinMode(16, INPUT_PULLUP);
+  pinMode(15, INPUT_PULLUP);
+  pinMode(14, INPUT_PULLUP);
+  pinMode(A0, INPUT_PULLUP);
+  pinMode(A1, INPUT_PULLUP);
+  pinMode(A2, INPUT_PULLUP);
+  pinMode(A3, INPUT_PULLUP);
+  pinMode(1, INPUT_PULLUP); // Restore
+
+#ifdef DEBUG
+  Serial.begin(9600);
+  while (!Serial) ; // Wait for the serial monitor
+  Serial.println("Setup done");
+#endif
+}
+
+void loop()
 {
-  int outPinForRow[] = {9, 3, 4, 5, 6, 7, 8, 2, 0};
-  int inPinForColumn[] = {10, 16, 14, A3, A0, A1, A2, 15, 1};
-  for (int row = 0; row < 9; row++) {
+  bool isModifierDown = isRestoreDown();
+  int modifierShift = isModifierDown ? LAYER_SIZE : 0;
+
+  for (int row = 0; row < 8; row++) {
     // set unused (all) outputs to input to avoid ghosting
-    for (int r = 0; r < 9; r++) pinMode(outPinForRow[r], INPUT);
+    setAllOutPinsToIn();
 
     pinMode(outPinForRow[row], OUTPUT);
     digitalWrite(outPinForRow[row], LOW);
-    outPinSet = outPinForRow[row];
-    
-    for (int column = 0; column < 9; column++) {
-      keyPos = column + (row * 9); // calculate character map position
-      if (row == 8) keyPos=70; // Evil Restore hack
-      
-      if (USKeyboard==1) {
-        if (!windowsShift) inChar=keyMapUS[keyPos+shift]; // work out which key it is from the map and shift if needed
-        else inChar=keyMapUS[keyPos+144];  // use "windows" keymap where shift is passed through
-      }
-      
-      if (USKeyboard==0) {
-        if (!windowsShift) inChar=keyMapEU[keyPos+shift]; // work out which key it is from the map and shift if needed
-        else inChar=keyMapEU[keyPos+144];  // use "windows" keymap where shift is passed through
-      }
-      
-      digitalread=1-digitalRead(inPinForColumn[column]);
- 
-      if ((millis()-lastDebounceTime[keyPos])>debounceDelay) {// debounce for each key individually
-        if (digitalread==1 && keyDown[keyPos]==0) {// if a key is pressed and wasn't already down
-          keyDown[keyPos]=inChar;        // put the right character in the keydown array
 
-          if (HybridKeyboard == 1) {
-            if (keyDown[POS_LEFT_SHIFT]&&keyDown[POS_CRSR_LR])  {releaseKey (keyDown[POS_LEFT_SHIFT]);keyDown[keyPos]=KEY_LEFT_ARROW;}
-            if (keyDown[POS_LEFT_SHIFT]&&keyDown[POS_F7])  {releaseKey (keyDown[POS_LEFT_SHIFT]);keyDown[keyPos]=KEY_F8;}
-            if (keyDown[POS_LEFT_SHIFT]&&keyDown[POS_F1])  {releaseKey (keyDown[POS_LEFT_SHIFT]);keyDown[keyPos]=KEY_F2;}
-            if (keyDown[POS_LEFT_SHIFT]&&keyDown[POS_F3])  {releaseKey (keyDown[POS_LEFT_SHIFT]);keyDown[keyPos]=KEY_F4;}
-            if (keyDown[POS_LEFT_SHIFT]&&keyDown[POS_F5])  {releaseKey (keyDown[POS_LEFT_SHIFT]);keyDown[keyPos]=KEY_F6;}
-            if (keyDown[POS_LEFT_SHIFT]&&keyDown[POS_CRSR_UD])  {releaseKey (keyDown[POS_LEFT_SHIFT]);keyDown[keyPos]=KEY_UP_ARROW;}
-            if (keyDown[POS_LEFT_SHIFT]&&keyDown[POS_RESTORE]) {releaseKey (keyDown[POS_LEFT_SHIFT]);keyDown[keyPos]=KEY_F12;}
+    for (int column = 0; column < 8; column++) {
+      int keyPos = column + (row * 8); // calculate character map position
+      bool columnOn = digitalRead(inPinForColumn[column]) == 0;
+
+      if ((millis() - lastDebounceTime[keyPos]) > debounceDelay) {
+        if (columnOn && keyDown[keyPos] == 0) {
+          keyDown[keyPos] = layers[keyPos + LAYER_SIZE * 2 * mode + modifierShift];
+          if (!isModeChange(isModifierDown)) {
+#ifdef DEBUG
+            Serial.print("Key down at ");
+            Serial.println(keyPos);
+            Serial.print("With modifier ");
+            Serial.println(isModifierDown);
+#endif
+            pressKey(keyDown[keyPos]);
           }
-
           lastDebounceTime[keyPos] = millis();
-          if ((keyPos!=POS_LEFT_SHIFT && keyPos!= POS_RIGHT_SHIFT)||windowsShift==1) // is it not-shift or in windows mode?
-            pressKey(keyDown[keyPos]);    // pass the keypress to windows
-          else 
-            shift=72; // reset keybounce delay and mark as shift press
         }
-        if (digitalread==0 && keyDown[keyPos]!=0) {// key is up and a character is stored in the keydown position
-          lastDebounceTime[keyPos] = millis();  // reset keybounce delay
-          if ((keyPos!=POS_LEFT_SHIFT && keyPos!=POS_RIGHT_SHIFT)||windowsShift==1) // not-shift or windows mode
-            releaseKey(keyDown[keyPos]);    // pass key release to windows
-          else 
-            shift=0;// reset keybounce delay and mark as un-shifted
-          keyDown[keyPos]=0; // set keydown array position as up
+
+        if (!columnOn && keyDown[keyPos] != 0) { // key is up and a character is stored in the keydown position
+          releaseKey(keyDown[keyPos]);    // pass key release to windows
+          keyDown[keyPos] = 0; // set keydown array position as up
+          lastDebounceTime[keyPos] = millis();
         }
       }
     }
-  digitalWrite(outPinSet,HIGH); // set output back to high
+    digitalWrite(outPinForRow[row], HIGH); // set output back to high
   }
 }
 
+bool isRestoreDown() {
+  // No need to worry about ghosting, as this key has its own line.
+  digitalWrite(RESTORE_PIN_OUT, LOW);
+  bool restoreDown = digitalRead(RESTORE_PIN_IN) == 0;
+  digitalWrite(RESTORE_PIN_OUT, HIGH);
+  return restoreDown;
+}
+
+void setAllOutPinsToIn() {
+  for (int r = 0; r < 8; r++) pinMode(outPinForRow[r], INPUT);
+}
+
+bool isModeChange(bool isModifierDown) {
+  bool modeChanged = false;
+  if (isModifierDown && keyDown[POS_COMMODORE])
+    if (keyDown[POS_F1]) {
+      mode = 0;
+      modeChanged = true;
+    } else if (keyDown[POS_F3]) {
+      mode = 1;
+      modeChanged = true;
+    }
+#ifdef DEBUG
+  if (modeChanged) {
+    Serial.print("Mode changed to ");
+    Serial.println(mode);
+  }
+#endif
+  return modeChanged;
+}
+
 void pressKey(char key) {
-  #ifdef DEBUG
-    Serial.print("Press: ");
-    printChar(key);
-  #else
-    Keyboard.press(key);
-  #endif 
+#ifdef DEBUG
+  Serial.print("Press: ");
+  printChar(key);
+#else
+  Keyboard.press(key);
+#endif
 }
 
 void releaseKey(char key) {
-  #ifdef DEBUG
-    Serial.print("Release: ");
-    printChar(key);
-  #else
-    Keyboard.release(key);    // pass key release to windows
-  #endif
+#ifdef DEBUG
+  Serial.print("Release: ");
+  printChar(key);
+#else
+  Keyboard.release(key);    // pass key release to windows
+#endif
 }
 
 void printChar(char key) {
