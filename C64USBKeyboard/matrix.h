@@ -6,104 +6,120 @@
 #define KEY_PRNT_SCRN 0xCE
 
 // Some keyboard matrix positions
-#define POS_INSERT_DELETE 0
-#define POS_RETURN 1
-#define POS_CRSR_LR 2
-#define POS_F7 3
-#define POS_F1 4
-#define POS_F3 5
-#define POS_F5 6
-#define POS_CRSR_UD 7
-#define POS_LEFT_SHIFT 15
-#define POS_RIGHT_SHIFT 52
-#define POS_COMMODORE 61
+#define POS_F1 24
+#define POS_F3 16
+#define POS_F5 8
+#define POS_F7 0
+#define POS_COMMODORE 23
 
-#define LAYER_SIZE 64
+#define MATRIX_SIZE 64
 
-// The C64 keyboard matrix (with shifted values)
-//Ins/Del        Return           CRSR LR          F7/F8            F1/F2            F3/F4            F5/F6            CRSR UD          Null
-//3/#            W                A                4/$              Z                S                E                LShift           Null
-//5/%            R                D                6/&              C                F                T                X                Null
-//7/'            Y                G                8/(              B                H                U                V                Null
-//9/)            I                J                0                M                K                O                N                Null
-//+              P                L                -                ./>              :/[              @                ,/<              Null
-//£              *                ;/]              Clr/Home         RShift           =                ↑                //?              Null
-//1/!            ←               Control          2/"              Space            Commodore        Q                Run/Stop         Null
-//Null           Null             Null             Null             Null             Null             Null             Null             Restore
+// The C64 keyboard matrix (with shifted values). The table headers show the corresponding pins of the C64 ribbon cable.
+//
+//    |  13             14               15               16               17              18                19               20 <- Columns, output pins
+// ------------------------------------------------------------------------------------------------------------------------------------
+// 5  |  F7 F8          Clr Home         -                0                8 (              6 &              4 $              2 "
+// 6  |  F5 F6          ↑                @                O                U                T                E                Q
+// 7  |  F3 F4          =                : [              K                H                F                S                C=
+// 8  |  F1 F2          RShift           . >              M                B                C                Z                Space
+// 9  |  Crsr U/D       / ?              , <              N                V                X                LShift           Run/Stop 
+// 10 |  Crsr L/R       ; ]              L                J                G                D                A                Ctrl
+// 11 |  Return         *                P                I                Y                R                W                ←
+// 12 |  Ins Del        £                +                9 )              7 '              5 %              3 #              1 !
+// ^
+// Rows, input pins
+//
+// Restore is handled separately:
+//       1
+// 3     Restore
+// We'll use Restore as a function key, and thus it cannot be re-mapped, it's not included in the matrix definition below.
 
-// Restore is handled separately, and cannot be mapped, so the layers are 8*8 in size.
+// The 'layers' array below will contain the character mapped for each intersection of the matrix. The value to be sent will depend on the 
+// current 'mode' that the keyboard is in, and wheter Restore (our function key) is down. So, for each mode, there are 2 mappings (normal, and
+// with function), each containing 8x8 characters.
 char layers[] = {
-// C64 layer
-//Ins/Del        Return           CRSR LR          F7               F1               F3               F5               CRSR UD          
-KEY_DELETE,      KEY_RETURN,      KEY_RIGHT_ARROW, KEY_F7,          KEY_F1,          KEY_F3,          KEY_F5,          KEY_DOWN_ARROW,  
-//3              W                A                4                Z                S                E                LShift           
-'3',             'w',             'a',             '4',             'z',             's',             'e',             KEY_LEFT_SHIFT,  
-//5              R                D                6                C                F                T                X                
-'5',             'r',             'd',             '6',             'c',             'f',             't',             'x',             
-//7              Y                G                8                B                H                U                V                
-'7',             'y',             'g',             '8',             'b',             'h',             'u',             'v',             
-//9              I                J                0                M                K                O                N                
-'9',             'i',             'j',             '0',             'm',             'k',             'o',             'n',             
-//+              P                L                -                .                :                @                ,                
-'+',             'p',             'l',             '-',             '.',             ':',             '@',             ',',             
-//£              *                ;                Clr/Home         RShift           =                ↑                /                
-'#',             '*',             ';',             KEY_HOME,        KEY_RIGHT_SHIFT, '=',             KEY_PAGE_UP,     '/',             
-//1              ←               Control          2                Space            Commodore        Q                Run/Stop         
-'1',             KEY_BACKSPACE,   KEY_LEFT_CTRL,   '2',             ' ',             KEY_RIGHT_GUI,   'q',             KEY_ESC,         
+// C64 mode - normal
+//    |  13             14               15               16               17              18                19               20
+// ------------------------------------------------------------------------------------------------------------------------------------
+// 5  |  F7 F8          Clr Home         -                0                8 (              6 &              4 $              2 "
+         KEY_F7,        KEY_HOME,        '-',             '0',             '8',             '6',             '4',             '2',
+// 6  |  F5 F6          ↑                @                O                U                T                E                Q
+         KEY_F5,        KEY_PAGE_UP,     '@',             'o',             'u',             't',             'e',             'q',
+// 7  |  F3 F4          =                : [              K                H                F                S                C=
+         KEY_F3,        '=',             ':',             'k',             'h',             'f',             's',             KEY_RIGHT_GUI,
+// 8  |  F1 F2          RShift           . >              M                B                C                Z                Space
+         KEY_F1,        KEY_RIGHT_SHIFT, '.',             'm',             'b',             'c',             'z',             ' ',
+// 9  |  Crsr U/D       / ?              , <              N                V                X                LShift           Run/Stop 
+         KEY_DOWN_ARROW,'/',             ',',             'n',             'v',             'x',             KEY_LEFT_SHIFT,  KEY_ESC,
+// 10 |  Crsr L/R       ; ]              L                J                G                D                A                Ctrl
+         KEY_RIGHT_ARROW,';',            'l',             'j',             'g',             'd',             'a',             KEY_LEFT_CTRL,
+// 11 |  Return         *                P                I                Y                R                W                ←
+         KEY_RETURN,    '*',             'p',             'i',             'y',             'r',             'w',             KEY_BACKSPACE,
+// 12 |  Ins Del        £                +                9 )              7 '              5 %              3 #              1 !
+         KEY_DELETE,    '£',             '+',             '9',             '7',             '5',             '3',             '1',
 
-// C64 layer - function
-//Ins/Del        Return           CRSR LR          F7               F1               F3               F5               CRSR UD          
-KEY_INSERT,      KEY_RETURN,      KEY_LEFT_ARROW,  KEY_F8,          KEY_F2,          KEY_F4,          KEY_F6,          KEY_UP_ARROW,    
-//3              W                A                4                Z                S                E                LShift           
-'#',             'w',             'a',             '$',             'z',             's',             'e',             KEY_LEFT_SHIFT,  
-//5              R                D                6                C                F                T                X                
-'%',             'r',             'd',             '&',             'c',             'f',             't',             'x',             
-//7              Y                G                8                B                H                U                V                
-'\'',            'y',             'g',             '(',             'b',             'h',             'u',             'v',             
-//9              I                J                0                M                K                O                N                
-')',             'i',             'j',             '0',             'm',             'k',             'o',             'n',             
-//+              P                L                -                .                :                @                ,                
-'+',             'p',             'l',             '-',             '>',             '[',             '@',             '<',             
-//£              *                ;                Clr/Home         RShift           =                ↑                /                
-'#',             '*',             ']',             KEY_END,         KEY_RIGHT_SHIFT, '=',             KEY_PAGE_DOWN,   '?',             
-//1              ←               Control          2                Space            Commodore        Q                Run/Stop         
-'!',             KEY_DELETE,      KEY_LEFT_CTRL,   '"',             ' ',             KEY_RIGHT_GUI,   'q',             KEY_ESC,         
+// C64 layer - with restore (function) pressed. We'll use this to send the original shifted values on the C64 keys.
+//    |  13             14               15               16               17              18                19               20
+// ------------------------------------------------------------------------------------------------------------------------------------
+// 5  |  F7 F8          Clr Home         -                0                8 (              6 &              4 $              2 "
+         KEY_F8,        KEY_END,         '-',             '0',             '(',             '&',             '$',             '"',
+// 6  |  F5 F6          ↑                @                O                U                T                E                Q
+         KEY_F6,        KEY_PAGE_DOWN,   '@',             'o',             'u',             't',             'e',             'q',
+// 7  |  F3 F4          =                : [              K                H                F                S                C=
+         KEY_F4,        '=',             '[',             'k',             'h',             'f',             's',             KEY_RIGHT_GUI,
+// 8  |  F1 F2          RShift           . >              M                B                C                Z                Space
+         KEY_F2,        KEY_RIGHT_SHIFT, '>',             'm',             'b',             'c',             'z',             ' ',
+// 9  |  Crsr U/D       / ?              , <              N                V                X                LShift           Run/Stop 
+         KEY_UP_ARROW,  '?',             '<',             'n',             'v',             'x',             KEY_LEFT_SHIFT,  KEY_ESC,
+// 10 |  Crsr L/R       ; ]              L                J                G                D                A                Ctrl
+         KEY_LEFT_ARROW,']',            'l',              'j',             'g',             'd',             'a',             KEY_LEFT_CTRL,
+// 11 |  Return         *                P                I                Y                R                W                ←
+         KEY_RETURN,    '*',             'p',             'i',             'y',             'r',             'w',             KEY_DELETE,
+// 12 |  Ins Del        £                +                9 )              7 '              5 %              3 #              1 !
+         KEY_INSERT,    '£',             '+',             ')',             '\'',            '%',             '#',             '!',
 
-// 60% layout layer
-//Ins/Del        Return           CRSR LR          F7/F8            F1/F2            F3/F4            F5/F6            CRSR UD          
-KEY_BACKSPACE,   KEY_RETURN,      KEY_RIGHT_ARROW, KEY_END,         KEY_HOME,        KEY_PAGE_UP,     KEY_PAGE_DOWN,   KEY_DOWN_ARROW,  
-//3/#            W                A                4/$              Z                S                E                LShift           
-'3',             'w',             'a',             '4',             'z',             's',             'e',             KEY_LEFT_SHIFT,  
-//5/%            R                D                6/&              C                F                T                X                
-'5',             'r',             'd',             '6',             'c',            'f',              't',             'x',             
-//7/'            Y                G                8/(              B                H                U                V                
-'7',             'y',             'g',             '8',             'b',             'h',             'u',             'v',             
-//9/)            I                J                0                M                K                O                N                
-'9',             'i',             'j',             '0',             'm',             'k',             'o',             'n',             
-//+              P                L                -                ./>              :/[              @                ,/<              
-'-',             'p',             'l',             '=',             '.',             ';',             '[',             ',',             
-//£              *                ;/]              Clr/Home         RShift           =                ↑                //?              
-KEY_RIGHT_CTRL,  ']',             '\'',            KEY_RIGHT_GUI,   KEY_RIGHT_SHIFT, KEY_RIGHT_ALT,   '\\',            '/',             
-//1/!            ←               Control          2/"              Space            Commodore        Q                Run/Stop         
-'1',             KEY_ESC,         KEY_TAB,        '2',              ' ',             KEY_LEFT_CTRL,   'q',             KEY_LEFT_ALT,    
+
+
+// 60% mode - normal layer - similar to how a Poker II is laid out.
+//    |  13             14               15               16               17              18                19               20
+// ------------------------------------------------------------------------------------------------------------------------------------
+// 5  |  F7 F8          Clr Home         -                0                8 (              6 &              4 $              2 "
+         KEY_END,       KEY_RIGHT_GUI,   '=',             '0',             '8',             '6',             '4',             '2',
+// 6  |  F5 F6          ↑                @                O                U                T                E                Q
+         KEY_PAGE_DOWN, '\\',            '[',             'o',             'u',             't',             'e',             'q',
+// 7  |  F3 F4          =                : [              K                H                F                S                C=
+         KEY_PAGE_UP,   KEY_RIGHT_ALT,   ';',             'k',             'h',             'f',             's',             KEY_LEFT_CTRL,
+// 8  |  F1 F2          RShift           . >              M                B                C                Z                Space
+         KEY_HOME,      KEY_RIGHT_SHIFT, '.',             'm',             'b',             'c',             'z',             ' ',
+// 9  |  Crsr U/D       / ?              , <              N                V                X                LShift           Run/Stop 
+         KEY_DOWN_ARROW,'/',             ',',             'n',             'v',             'x',             KEY_LEFT_SHIFT,  KEY_LEFT_ALT,
+// 10 |  Crsr L/R       ; ]              L                J                G                D                A                Ctrl
+         KEY_RIGHT_ARROW,'\'',           'l',             'j',             'g',             'd',             'a',             KEY_TAB,
+// 11 |  Return         *                P                I                Y                R                W                ←
+         KEY_RETURN,    ']',             'p',             'i',             'y',             'r',             'w',             KEY_ESC,
+// 12 |  Ins Del        £                +                9 )              7 '              5 %              3 #              1 !
+         KEY_BACKSPACE, KEY_RIGHT_CTRL,  '-',             '9',             '7',             '5',             '3',             '1',
+
 
 // 60% layout layer function
-//Ins/Del        Return           CRSR LR          F7/F8            F1/F2            F3/F4            F5/F6            CRSR UD          
-KEY_DELETE,      KEY_RETURN,      KEY_LEFT_ARROW,  KEY_F8,          KEY_F2,          KEY_F4,          KEY_F6,          KEY_UP_ARROW,    
-//3/#            W                A                4/$              Z                S                E                LShift           
-KEY_F3,          KEY_UP_ARROW,    KEY_LEFT_ARROW,  KEY_F4,          'z',             KEY_DOWN_ARROW,  'e',             KEY_LEFT_SHIFT,  
-//5/%            R                D                6/&              C                F                T                X                
-KEY_F5,          'r',             KEY_RIGHT_ARROW, KEY_F6,          'c',            'f',              't',             'x',             
-//7/'            Y                G                8/(              B                H                U                V                
-KEY_F7,          'y',             'g',             KEY_F8,          'b',             'h',             'u',             'v',             
-//9/)            I                J                0                M                K                O                N                
-KEY_F9,          'i',             'j',             KEY_F10,         'm',             'k',             'o',             'n',             
-//+              P                L                -                ./>              :/[              @                ,/<              
-KEY_F11,         KEY_PRNT_SCRN,   'l',             KEY_F12,         '.',             ';',             '[',             ',',             
-//£              *                ;/]              Clr/Home         RShift           =                ↑                //?              
-KEY_RIGHT_GUI,   ']',             '\'',            KEY_RIGHT_GUI,   KEY_RIGHT_SHIFT, KEY_RIGHT_ALT,   '\\',            '/',             
-//1/!            ←               Control          2/"              Space            Commodore        Q                Run/Stop         
-KEY_F1,          '`',             KEY_TAB,         KEY_F2,          ' ',             KEY_LEFT_CTRL,   'q',             KEY_LEFT_ALT,    
+//    |  13             14               15               16               17              18                19               20
+// ------------------------------------------------------------------------------------------------------------------------------------
+// 5  |  F7 F8          Clr Home         -                0                8 (              6 &              4 $              2 "
+         KEY_END,       KEY_RIGHT_GUI,   KEY_F12,         KEY_F10,         KEY_F8,          KEY_F6,          KEY_F4,          KEY_F2,
+// 6  |  F5 F6          ↑                @                O                U                T                E                Q
+         KEY_PAGE_DOWN, '\\',            '[',             'o',             'u',             't',             'e',             'q',
+// 7  |  F3 F4          =                : [              K                H                F                S                C=
+         KEY_PAGE_UP,   KEY_RIGHT_ALT,   ';',             'k',             'h',             'f',             KEY_DOWN_ARROW,  KEY_LEFT_CTRL,
+// 8  |  F1 F2          RShift           . >              M                B                C                Z                Space
+         KEY_HOME,      KEY_RIGHT_SHIFT, '.',             'm',             'b',             'c',             'z',             ' ',
+// 9  |  Crsr U/D       / ?              , <              N                V                X                LShift           Run/Stop 
+         KEY_UP_ARROW,  '/',             ',',             'n',             'v',             'x',             KEY_LEFT_SHIFT,  KEY_LEFT_ALT,
+// 10 |  Crsr L/R       ; ]              L                J                G                D                A                Ctrl
+         KEY_LEFT_ARROW,'\'',            'l',             'j',             'g',             KEY_RIGHT_ARROW, KEY_LEFT_ARROW,  KEY_TAB,
+// 11 |  Return         *                P                I                Y                R                W                ←
+         KEY_RETURN,    ']',             KEY_PRNT_SCRN,   'i',             'y',             'r',             KEY_UP_ARROW,    '`',
+// 12 |  Ins Del        £                +                9 )              7 '              5 %              3 #              1 !
+         KEY_DELETE,    KEY_RIGHT_CTRL,  KEY_F11,         KEY_F9,          KEY_F7,          KEY_F5,          KEY_F3,          KEY_F1,
 };
 
 #endif
